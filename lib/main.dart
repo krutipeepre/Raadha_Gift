@@ -103,7 +103,7 @@ class _JaapScreenState extends State<JaapScreen> {
                   padding:
                       const EdgeInsets.symmetric(vertical: 20, horizontal: 50),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2A1B0A).withOpacity(0.85),
+                    color: const Color(0xFF2A1B0A).withValues(alpha: 0.85),
                     border:
                         Border.all(color: const Color(0xFFD4AF37), width: 2),
                     borderRadius: BorderRadius.circular(15),
@@ -128,7 +128,7 @@ class _JaapScreenState extends State<JaapScreen> {
                       const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
                   margin: const EdgeInsets.only(bottom: 40),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF132F2B).withOpacity(0.9),
+                    color: const Color(0xFF132F2B).withValues(alpha: 0.9),
                     border:
                         Border.all(color: const Color(0xFFD4AF37), width: 1),
                     borderRadius: BorderRadius.circular(30),
