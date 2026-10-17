@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -68,9 +69,10 @@ class _JaapScreenState extends State<JaapScreen> {
   int _lifetimeTotal = 0;
   int _todayTotal = 0;
   String _lastDate = "";
+  Map<String, int> _historyData = {};
 
   bool _isAudioEnabled = true;
-  bool _isProcessingTap = false; // Naya Lock System
+  bool _isProcessingTap = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
@@ -78,7 +80,6 @@ class _JaapScreenState extends State<JaapScreen> {
     super.initState();
     _loadData();
 
-    // Background listener: Jaise hi audio khatam hoga, screen automatically unlock ho jayegi
     _audioPlayer.onPlayerComplete.listen((event) {
       _isProcessingTap = false;
     });
@@ -87,11 +88,30 @@ class _JaapScreenState extends State<JaapScreen> {
   void _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    final todayStr = "${now.year}-${now.month}-${now.day}";
+    List<String> months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    final todayStr = "${now.day} ${months[now.month - 1]} ${now.year}";
 
     setState(() {
       _lifetimeTotal = prefs.getInt('lifetime') ?? 0;
-      _lastDate = prefs.getString('lastDate') ?? "";
+      _lastDate = prefs.getString('lastDate') ?? todayStr;
+
+      // History data load karna
+      String historyJson = prefs.getString('historyData') ?? '{}';
+      Map<String, dynamic> decoded = jsonDecode(historyJson);
+      _historyData = decoded.map((key, value) => MapEntry(key, value as int));
 
       if (_lastDate == todayStr) {
         _todayTotal = prefs.getInt('today') ?? 0;
@@ -99,6 +119,8 @@ class _JaapScreenState extends State<JaapScreen> {
         _todayTotal = 0;
         _lastDate = todayStr;
       }
+
+      _historyData[todayStr] = _todayTotal;
     });
   }
 
@@ -107,10 +129,12 @@ class _JaapScreenState extends State<JaapScreen> {
     prefs.setInt('lifetime', _lifetimeTotal);
     prefs.setInt('today', _todayTotal);
     prefs.setString('lastDate', _lastDate);
+
+    _historyData[_lastDate] = _todayTotal;
+    prefs.setString('historyData', jsonEncode(_historyData));
   }
 
   void _handleTap() async {
-    // Agar screen pehle se locked hai, toh naya tap ignore karo
     if (_isProcessingTap) return;
 
     _isProcessingTap = true;
@@ -131,7 +155,6 @@ class _JaapScreenState extends State<JaapScreen> {
       Future.delayed(const Duration(milliseconds: 300),
           () => HapticFeedback.heavyImpact());
 
-      // FIX: Bell hamesha bajegi, chahe voice ON ho ya OFF
       await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('bell.mp3'));
     } else {
@@ -141,7 +164,6 @@ class _JaapScreenState extends State<JaapScreen> {
         await _audioPlayer.stop();
         await _audioPlayer.play(AssetSource('radha.mp3'));
       } else {
-        // Agar voice OFF hai, toh exactly 1 second baad screen unlock karo
         Future.delayed(const Duration(seconds: 1), () {
           _isProcessingTap = false;
         });
@@ -184,12 +206,29 @@ class _JaapScreenState extends State<JaapScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Top Bar: History Button & Audio Toggle
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20.0, vertical: 10.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        // History Button
+                        IconButton(
+                          icon: const Icon(Icons.history,
+                              color: Colors.white, size: 28),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    HistoryScreen(historyData: _historyData),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Audio Toggle
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 5),
@@ -222,6 +261,7 @@ class _JaapScreenState extends State<JaapScreen> {
                       ],
                     ),
                   ),
+
                   Column(
                     children: [
                       Text(
@@ -257,6 +297,7 @@ class _JaapScreenState extends State<JaapScreen> {
                       ),
                     ],
                   ),
+
                   Container(
                     padding: const EdgeInsets.symmetric(
                         vertical: 15, horizontal: 40),
@@ -280,6 +321,87 @@ class _JaapScreenState extends State<JaapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Naya History Screen (Screenshot Design based)
+class HistoryScreen extends StatelessWidget {
+  final Map<String, int> historyData;
+  const HistoryScreen({super.key, required this.historyData});
+
+  @override
+  Widget build(BuildContext context) {
+    // Latest date sabse upar dikhane ke liye reverse kiya hai
+    List<String> dates = historyData.keys.toList().reversed.toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('Counter History',
+            style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: dates.length,
+        itemBuilder: (context, index) {
+          String date = dates[index];
+          int count = historyData[date] ?? 0;
+
+          // Agar kisi din 0 tap kiya hai toh wo hide rahega
+          if (count == 0) return const SizedBox.shrink();
+
+          int rounds = count ~/ 108;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 15),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2C2C2C),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Radha Jaap',
+                        style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    const SizedBox(height: 10),
+                    const Text('On that day',
+                        style: TextStyle(color: Colors.white54, fontSize: 14)),
+                    const SizedBox(height: 5),
+                    Text('$count',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w300)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(date,
+                        style: TextStyle(color: Colors.white54, fontSize: 14)),
+                    const SizedBox(height: 10),
+                    const Text('108 ×',
+                        style: TextStyle(color: Colors.white54, fontSize: 14)),
+                    const SizedBox(height: 5),
+                    Text('$rounds',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w300)),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
