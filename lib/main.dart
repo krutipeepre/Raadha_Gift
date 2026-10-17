@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Vibration ke liye add kiya
+import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,13 +70,18 @@ class _JaapScreenState extends State<JaapScreen> {
   String _lastDate = "";
 
   bool _isAudioEnabled = true;
-  DateTime? _lastTapTime;
+  bool _isProcessingTap = false; // Naya Lock System
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+
+    // Background listener: Jaise hi audio khatam hoga, screen automatically unlock ho jayegi
+    _audioPlayer.onPlayerComplete.listen((event) {
+      _isProcessingTap = false;
+    });
   }
 
   void _loadData() async {
@@ -105,14 +110,10 @@ class _JaapScreenState extends State<JaapScreen> {
   }
 
   void _handleTap() async {
-    final now = DateTime.now();
+    // Agar screen pehle se locked hai (audio chal raha hai ya 1-sec pause hai), toh naya tap ignore karo
+    if (_isProcessingTap) return;
 
-    // 1-second pause logic (debounce)
-    if (_lastTapTime != null &&
-        now.difference(_lastTapTime!).inMilliseconds < 1000) {
-      return;
-    }
-    _lastTapTime = now;
+    _isProcessingTap = true; // Screen ko lock kar diya
 
     setState(() {
       _lifetimeTotal++;
@@ -124,7 +125,6 @@ class _JaapScreenState extends State<JaapScreen> {
     bool isRoundComplete = _todayTotal % 108 == 0 && _todayTotal > 0;
 
     if (isRoundComplete) {
-      // 108 poore hone par: Long Vibration (3 baar heavy impact) aur Bell Sound
       HapticFeedback.heavyImpact();
       Future.delayed(const Duration(milliseconds: 150),
           () => HapticFeedback.heavyImpact());
@@ -134,14 +134,25 @@ class _JaapScreenState extends State<JaapScreen> {
       if (_isAudioEnabled) {
         await _audioPlayer.stop();
         await _audioPlayer.play(AssetSource('bell.mp3'));
+        // Screen unlock hone ka kaam ab onPlayerComplete listener khud handle karega
+      } else {
+        // Agar aawaz band hai, toh exactly 1 second baad screen unlock karo
+        Future.delayed(const Duration(seconds: 1), () {
+          _isProcessingTap = false;
+        });
       }
     } else {
-      // Normal tap par: Light Vibration aur Radha Sound
       HapticFeedback.lightImpact();
 
       if (_isAudioEnabled) {
         await _audioPlayer.stop();
         await _audioPlayer.play(AssetSource('radha.mp3'));
+        // Screen unlock hone ka kaam ab onPlayerComplete listener khud handle karega
+      } else {
+        // Agar aawaz band hai, toh exactly 1 second baad screen unlock karo
+        Future.delayed(const Duration(seconds: 1), () {
+          _isProcessingTap = false;
+        });
       }
     }
   }
