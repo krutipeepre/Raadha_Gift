@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Vibration ke liye add kiya
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,7 +79,6 @@ class _JaapScreenState extends State<JaapScreen> {
     _loadData();
   }
 
-  // Data phone ki memory se load karne ke liye
   void _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
@@ -88,7 +88,6 @@ class _JaapScreenState extends State<JaapScreen> {
       _lifetimeTotal = prefs.getInt('lifetime') ?? 0;
       _lastDate = prefs.getString('lastDate') ?? "";
 
-      // Agar date aaj ki hai toh today ka data load karo, warna 0 kar do
       if (_lastDate == todayStr) {
         _todayTotal = prefs.getInt('today') ?? 0;
       } else {
@@ -98,7 +97,6 @@ class _JaapScreenState extends State<JaapScreen> {
     });
   }
 
-  // Har tap par data save karne ke liye
   void _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('lifetime', _lifetimeTotal);
@@ -123,10 +121,28 @@ class _JaapScreenState extends State<JaapScreen> {
 
     _saveData();
 
-    // Audio play logic (agar switch ON hai)
-    if (_isAudioEnabled) {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('radha.mp3'));
+    bool isRoundComplete = _todayTotal % 108 == 0 && _todayTotal > 0;
+
+    if (isRoundComplete) {
+      // 108 poore hone par: Long Vibration (3 baar heavy impact) aur Bell Sound
+      HapticFeedback.heavyImpact();
+      Future.delayed(const Duration(milliseconds: 150),
+          () => HapticFeedback.heavyImpact());
+      Future.delayed(const Duration(milliseconds: 300),
+          () => HapticFeedback.heavyImpact());
+
+      if (_isAudioEnabled) {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(AssetSource('bell.mp3'));
+      }
+    } else {
+      // Normal tap par: Light Vibration aur Radha Sound
+      HapticFeedback.lightImpact();
+
+      if (_isAudioEnabled) {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(AssetSource('radha.mp3'));
+      }
     }
   }
 
@@ -138,19 +154,16 @@ class _JaapScreenState extends State<JaapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1-108 loop logic
     int currentCount =
         (_todayTotal % 108 == 0 && _todayTotal > 0) ? 108 : (_todayTotal % 108);
     if (_todayTotal == 0) currentCount = 0;
 
-    // 108 * x rounds logic (integer division se float automatically handle ho jayega)
     int todayRounds = _todayTotal ~/ 108;
     int lifetimeRounds = _lifetimeTotal ~/ 108;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -161,8 +174,6 @@ class _JaapScreenState extends State<JaapScreen> {
               ),
             ),
           ),
-
-          // Tap Area Overlay
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _handleTap,
@@ -170,7 +181,6 @@ class _JaapScreenState extends State<JaapScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top Bar: Audio Toggle
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20.0, vertical: 10.0),
@@ -209,8 +219,6 @@ class _JaapScreenState extends State<JaapScreen> {
                       ],
                     ),
                   ),
-
-                  // Middle: Main 1-108 Counter aur Stats (Screenshots wale layout par based)
                   Column(
                     children: [
                       Text(
@@ -221,8 +229,6 @@ class _JaapScreenState extends State<JaapScreen> {
                             fontWeight: FontWeight.w300),
                       ),
                       const SizedBox(height: 20),
-
-                      // Today Stats
                       Text(
                         'Today $_todayTotal',
                         style: const TextStyle(
@@ -231,14 +237,11 @@ class _JaapScreenState extends State<JaapScreen> {
                       Text(
                         '108 × $todayRounds',
                         style: const TextStyle(
-                            fontSize: 18, color: Colors.white50),
+                            fontSize: 18, color: Colors.white54),
                       ),
-
                       const SizedBox(height: 10),
                       Container(width: 150, height: 1, color: Colors.white24),
                       const SizedBox(height: 10),
-
-                      // Lifetime Stats
                       Text(
                         'Lifetime $_lifetimeTotal',
                         style: const TextStyle(
@@ -251,8 +254,6 @@ class _JaapScreenState extends State<JaapScreen> {
                       ),
                     ],
                   ),
-
-                  // Bottom: Instruction
                   Container(
                     padding: const EdgeInsets.symmetric(
                         vertical: 15, horizontal: 40),
