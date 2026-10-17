@@ -19,7 +19,7 @@ flutter:
     - assets/bell.mp3
     - assets/splash_bg.jpg
     - assets/main_bg.jpg
-    - assets/icon.jpg
+    # - assets/icon.jpg
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
