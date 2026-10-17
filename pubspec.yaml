@@ -16,5 +16,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/radha.mp3
+    - assets/bell.mp3
     - assets/splash_bg.jpg
     - assets/main_bg.jpg
