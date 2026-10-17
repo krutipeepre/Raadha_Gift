@@ -72,6 +72,7 @@ class _JaapScreenState extends State<JaapScreen> {
   Map<String, int> _historyData = {};
 
   bool _isAudioEnabled = true;
+  bool _isImageBackgroundEnabled = true; // Naya Background Theme state
   bool _isProcessingTap = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -108,7 +109,12 @@ class _JaapScreenState extends State<JaapScreen> {
       _lifetimeTotal = prefs.getInt('lifetime') ?? 0;
       _lastDate = prefs.getString('lastDate') ?? todayStr;
 
-      // History data load karna
+      // Load switch preferences
+      _isAudioEnabled = prefs.getBool('isAudioEnabled') ?? true;
+      _isImageBackgroundEnabled =
+          prefs.getBool('isImageBackgroundEnabled') ?? true;
+
+      // History data load
       String historyJson = prefs.getString('historyData') ?? '{}';
       Map<String, dynamic> decoded = jsonDecode(historyJson);
       _historyData = decoded.map((key, value) => MapEntry(key, value as int));
@@ -129,6 +135,10 @@ class _JaapScreenState extends State<JaapScreen> {
     prefs.setInt('lifetime', _lifetimeTotal);
     prefs.setInt('today', _todayTotal);
     prefs.setString('lastDate', _lastDate);
+
+    // Save switch preferences
+    prefs.setBool('isAudioEnabled', _isAudioEnabled);
+    prefs.setBool('isImageBackgroundEnabled', _isImageBackgroundEnabled);
 
     _historyData[_lastDate] = _todayTotal;
     prefs.setString('historyData', jsonEncode(_historyData));
@@ -187,18 +197,27 @@ class _JaapScreenState extends State<JaapScreen> {
     int lifetimeRounds = _lifetimeTotal ~/ 108;
 
     return Scaffold(
+      backgroundColor: Colors.black, // Default dark background
       body: Stack(
         children: [
+          // Background UI: Conditional Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/main_bg.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
+            decoration: _isImageBackgroundEnabled
+                ? const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/main_bg.jpg'),
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : const BoxDecoration(
+                    color: Color(
+                        0xFF0A0A0A), // Ekdum deep dark blackish grey theme
+                  ),
           ),
+
+          // Tap Area Overlay
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _handleTap,
@@ -206,12 +225,13 @@ class _JaapScreenState extends State<JaapScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top Bar: History Button & Audio Toggle
+                  // Top Bar: History Button & Switches
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20.0, vertical: 10.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // History Button
                         IconButton(
@@ -228,40 +248,82 @@ class _JaapScreenState extends State<JaapScreen> {
                           },
                         ),
 
-                        // Audio Toggle
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: const Color(0xFFD4AF37), width: 1),
-                          ),
-                          child: Row(
-                            children: [
-                              const Text(
-                                "Maharaj Ji's Voice",
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 14),
+                        // Switches Column (Voice and Theme)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Audio Toggle
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: const Color(0xFFD4AF37), width: 1),
                               ),
-                              const SizedBox(width: 10),
-                              Switch(
-                                value: _isAudioEnabled,
-                                activeColor: const Color(0xFFD4AF37),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _isAudioEnabled = value;
-                                  });
-                                },
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    "Maharaj Ji's Voice",
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 14),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Switch(
+                                    value: _isAudioEnabled,
+                                    activeColor: const Color(0xFFD4AF37),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _isAudioEnabled = value;
+                                      });
+                                      _saveData();
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // Background Toggle
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: const Color(0xFFD4AF37), width: 1),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    "Background Image",
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 14),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Switch(
+                                    value: _isImageBackgroundEnabled,
+                                    activeColor: const Color(0xFFD4AF37),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _isImageBackgroundEnabled = value;
+                                      });
+                                      _saveData();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
 
+                  // Middle Data Area
                   Column(
                     children: [
                       Text(
@@ -326,14 +388,12 @@ class _JaapScreenState extends State<JaapScreen> {
   }
 }
 
-// Naya History Screen (Screenshot Design based)
 class HistoryScreen extends StatelessWidget {
   final Map<String, int> historyData;
   const HistoryScreen({super.key, required this.historyData});
 
   @override
   Widget build(BuildContext context) {
-    // Latest date sabse upar dikhane ke liye reverse kiya hai
     List<String> dates = historyData.keys.toList().reversed.toList();
 
     return Scaffold(
@@ -351,7 +411,6 @@ class HistoryScreen extends StatelessWidget {
           String date = dates[index];
           int count = historyData[date] ?? 0;
 
-          // Agar kisi din 0 tap kiya hai toh wo hide rahega
           if (count == 0) return const SizedBox.shrink();
 
           int rounds = count ~/ 108;
