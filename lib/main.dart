@@ -110,10 +110,10 @@ class _JaapScreenState extends State<JaapScreen> {
   }
 
   void _handleTap() async {
-    // Agar screen pehle se locked hai (audio chal raha hai ya 1-sec pause hai), toh naya tap ignore karo
+    // Agar screen pehle se locked hai, toh naya tap ignore karo
     if (_isProcessingTap) return;
 
-    _isProcessingTap = true; // Screen ko lock kar diya
+    _isProcessingTap = true;
 
     setState(() {
       _lifetimeTotal++;
@@ -131,25 +131,17 @@ class _JaapScreenState extends State<JaapScreen> {
       Future.delayed(const Duration(milliseconds: 300),
           () => HapticFeedback.heavyImpact());
 
-      if (_isAudioEnabled) {
-        await _audioPlayer.stop();
-        await _audioPlayer.play(AssetSource('bell.mp3'));
-        // Screen unlock hone ka kaam ab onPlayerComplete listener khud handle karega
-      } else {
-        // Agar aawaz band hai, toh exactly 1 second baad screen unlock karo
-        Future.delayed(const Duration(seconds: 1), () {
-          _isProcessingTap = false;
-        });
-      }
+      // FIX: Bell hamesha bajegi, chahe voice ON ho ya OFF
+      await _audioPlayer.stop();
+      await _audioPlayer.play(AssetSource('bell.mp3'));
     } else {
       HapticFeedback.lightImpact();
 
       if (_isAudioEnabled) {
         await _audioPlayer.stop();
         await _audioPlayer.play(AssetSource('radha.mp3'));
-        // Screen unlock hone ka kaam ab onPlayerComplete listener khud handle karega
       } else {
-        // Agar aawaz band hai, toh exactly 1 second baad screen unlock karo
+        // Agar voice OFF hai, toh exactly 1 second baad screen unlock karo
         Future.delayed(const Duration(seconds: 1), () {
           _isProcessingTap = false;
         });
